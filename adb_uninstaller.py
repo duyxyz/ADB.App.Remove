@@ -17,14 +17,32 @@ class ADBUninstaller(QWidget):
     def __init__(self):
         super().__init__()
         self.setWindowTitle("ADB App Uninstaller")
-        self.resize(370, 520)
+        self.resize(700, 520)
         self.setWindowIcon(QIcon("app_icon.ico"))
 
-        self.all_packages = []
+        self.sys_packages = []
+        self.user_packages = []
 
-        # List widget for showing package list
-        self.listwidget = QListWidget()
-        self.listwidget.setSelectionMode(QAbstractItemView.SelectionMode.MultiSelection)
+        # List widgets for showing package list
+        self.list_sys = QListWidget()
+        self.list_sys.setSelectionMode(QAbstractItemView.SelectionMode.MultiSelection)
+        self.list_user = QListWidget()
+        self.list_user.setSelectionMode(QAbstractItemView.SelectionMode.MultiSelection)
+
+        lbl_sys = QLabel("System Apps")
+        lbl_user = QLabel("3rd Party Apps")
+
+        vbox_sys = QVBoxLayout()
+        vbox_sys.addWidget(lbl_sys)
+        vbox_sys.addWidget(self.list_sys)
+
+        vbox_user = QVBoxLayout()
+        vbox_user.addWidget(lbl_user)
+        vbox_user.addWidget(self.list_user)
+
+        lists_layout = QHBoxLayout()
+        lists_layout.addLayout(vbox_sys)
+        lists_layout.addLayout(vbox_user)
 
         # Search box
         self.search_entry = QLineEdit()
@@ -47,7 +65,7 @@ class ADBUninstaller(QWidget):
 
         # Main layout
         main_layout = QVBoxLayout()
-        main_layout.addWidget(self.listwidget)
+        main_layout.addLayout(lists_layout)
         main_layout.addWidget(self.search_entry)
         main_layout.addLayout(btn_layout)
         main_layout.addWidget(self.status_label)
@@ -59,17 +77,25 @@ class ADBUninstaller(QWidget):
 
     def get_installed_packages(self):
         try:
-            cmd = ["adb", "shell", "pm", "list", "packages", "--user", "0"]
+            # Fetch System Apps
+            cmd_sys = ["adb", "shell", "pm", "list", "packages", "-s", "--user", "0"]
             startupinfo = subprocess.STARTUPINFO()
             startupinfo.dwFlags |= subprocess.STARTF_USESHOWWINDOW
-            result = subprocess.run(cmd, capture_output=True, text=True, startupinfo=startupinfo)
-            if result.returncode != 0:
-                return [], "ADB not running or device not connected!"
-            lines = result.stdout.strip().split('\n')
-            packages = [line.replace("package:", "").strip() for line in lines if line]
-            return packages, ""
+            result_sys = subprocess.run(cmd_sys, capture_output=True, text=True, startupinfo=startupinfo)
+            if result_sys.returncode != 0:
+                return [], [], "ADB not running or device not connected!"
+            lines_sys = result_sys.stdout.strip().split('\n')
+            sys_pkgs = [line.replace("package:", "").strip() for line in lines_sys if line]
+
+            # Fetch 3rd Party Apps
+            cmd_user = ["adb", "shell", "pm", "list", "packages", "-3", "--user", "0"]
+            result_user = subprocess.run(cmd_user, capture_output=True, text=True, startupinfo=startupinfo)
+            lines_user = result_user.stdout.strip().split('\n')
+            user_pkgs = [line.replace("package:", "").strip() for line in lines_user if line]
+
+            return sys_pkgs, user_pkgs, ""
         except Exception as e:
-            return [], f"Error: {str(e)}"
+            return [], [], f"Error: {str(e)}"
 
     def uninstall_package(self, pkg):
         cmd = ["adb", "shell", "pm", "uninstall", "-k", "--user", "0", pkg]
@@ -86,41 +112,51 @@ class ADBUninstaller(QWidget):
         self.status_label.setText("Loading package list...")
         QApplication.processEvents()  # Update UI
 
-        pkgs, err = self.get_installed_packages()
+        sys_pkgs, user_pkgs, err = self.get_installed_packages()
         if err:
             QMessageBox.critical(self, "Error", err)
             self.status_label.setText(err)
-            self.all_packages = []
-            self.listwidget.clear()
+            self.sys_packages, self.user_packages = [], []
+            self.list_sys.clear()
+            self.list_user.clear()
             return
 
-        self.all_packages = pkgs
-        self.update_listbox(self.all_packages)
-        self.status_label.setText(f"Loaded {len(pkgs)} apps.")
+        self.sys_packages = sorted(sys_pkgs)
+        self.user_packages = sorted(user_pkgs)
+        self.update_lists(self.sys_packages, self.user_packages)
+        self.status_label.setText(f"Loaded {len(sys_pkgs)} system apps and {len(user_pkgs)} 3rd-party apps.")
 
-    def update_listbox(self, pkg_list):
-        self.listwidget.clear()
-        for pkg in pkg_list:
-            item = QListWidgetItem(pkg)
-            self.listwidget.addItem(item)
-        self.status_label.setText(f"Showing {len(pkg_list)} apps.")
+    def update_lists(self, sys_list, user_list):
+        self.list_sys.clear()
+        for pkg in sys_list:
+            self.list_sys.addItem(QListWidgetItem(pkg))
+            
+        self.list_user.clear()
+        for pkg in user_list:
+            self.list_user.addItem(QListWidgetItem(pkg))
 
     def search_package(self):
         keyword = self.search_entry.text().strip().lower()
-        if not self.all_packages:
+        if not self.sys_packages and not self.user_packages:
             return
+            
         if keyword == "":
-            self.update_listbox(self.all_packages)
+            self.update_lists(self.sys_packages, self.user_packages)
         else:
-            filtered = [pkg for pkg in self.all_packages if keyword in pkg.lower()]
-            self.update_listbox(filtered)
+            filtered_sys = [pkg for pkg in self.sys_packages if keyword in pkg.lower()]
+            filtered_user = [pkg for pkg in self.user_packages if keyword in pkg.lower()]
+            self.update_lists(filtered_sys, filtered_user)
 
     def uninstall_selected(self):
-        selected_items = self.listwidget.selectedItems()
-        if not selected_items:
+        selected_sys = self.list_sys.selectedItems()
+        selected_user = self.list_user.selectedItems()
+        
+        all_selected = selected_sys + selected_user
+        if not all_selected:
             QMessageBox.warning(self, "No Selection", "Please select apps to uninstall.")
             return
-        pkgs = [item.text() for item in selected_items]
+            
+        pkgs = [item.text() for item in all_selected]
 
         reply = QMessageBox.question(
             self,
