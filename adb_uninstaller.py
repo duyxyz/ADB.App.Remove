@@ -196,6 +196,10 @@ class ADBUninstaller(App):
         background: #1e1e2e;
     }
 
+    ScrollBarCorner {
+        background: #1e1e2e;
+    }
+
     #bottom-bar {
         height: 3;
         padding: 0 1;

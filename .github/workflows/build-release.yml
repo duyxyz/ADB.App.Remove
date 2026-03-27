@@ -31,20 +31,18 @@ jobs:
 
       - name: Build EXE with PyInstaller
         run: |
-          pyinstaller --noconfirm --onefile --console --icon="app_icon.ico" --name "ADB-App-Remover" adb_uninstaller.py
+          pyinstaller --noconfirm --onedir --console --icon="app_icon.ico" --name "ADB-App-Remover" adb_uninstaller.py
 
       - name: Prepare Release Archive
         run: |
-          mkdir release
-          copy dist\ADB-App-Remover.exe release\
-          copy adb.exe release\
-          copy AdbWinApi.dll release\
-          copy AdbWinUsbApi.dll release\
-          copy fastboot.exe release\
-          copy app_icon.ico release\
-          copy README.md release\
-          copy LICENSE release\
-          Compress-Archive -Path release\* -DestinationPath ADB-App-Remover-Windows.zip
+          copy adb.exe dist\ADB-App-Remover\
+          copy AdbWinApi.dll dist\ADB-App-Remover\
+          copy AdbWinUsbApi.dll dist\ADB-App-Remover\
+          copy fastboot.exe dist\ADB-App-Remover\
+          copy app_icon.ico dist\ADB-App-Remover\
+          copy README.md dist\ADB-App-Remover\
+          copy LICENSE dist\ADB-App-Remover\
+          Compress-Archive -Path dist\ADB-App-Remover -DestinationPath ADB-App-Remover-Windows.zip
 
       - name: Generate Dynamic Tag
         id: generate_tag
