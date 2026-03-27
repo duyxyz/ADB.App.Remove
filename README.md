@@ -4,6 +4,9 @@ A terminal-based (TUI) application to **list** and **uninstall** apps installed 
 
 ---
 
+<img width="1884" height="972" alt="image" src="https://github.com/user-attachments/assets/3d75f555-b733-46cd-81de-5b1a8c68baa2" />
+
+
 ## Features
 
 - 🖱️ **Mouse-friendly TUI** — click to select, scroll, interact with buttons
