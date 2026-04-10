@@ -5,61 +5,49 @@ on:
     branches:
       - main
       - master
-  workflow_dispatch:  # Cho phép chạy thủ công
+  workflow_dispatch:
 
 jobs:
   build-and-release:
     runs-on: windows-latest
     permissions:
-      contents: write  # Cấp quyền để tạo GitHub Release
-      pull-requests: read
+      contents: write
 
     steps:
       - name: Checkout code
         uses: actions/checkout@v4
 
-      - name: Set up Python
-        uses: actions/setup-python@v5
+      - name: Set up Node.js
+        uses: actions/setup-node@v4
         with:
-          python-version: '3.10'
-          cache: 'pip'
+          node-version: '18'
+          cache: 'npm'
 
       - name: Install dependencies
-        run: |
-          python -m pip install --upgrade pip
-          pip install -r requirements.txt
-
-      - name: Build EXE with PyInstaller
-        run: |
-          pyinstaller --noconfirm --onedir --windowed --icon="app_icon.ico" "adb_uninstaller.py"
+        run: npm install
 
       - name: Prepare Release Archive
         run: |
-          copy adb.exe dist\adb_uninstaller\
-          copy AdbWinApi.dll dist\adb_uninstaller\
-          copy AdbWinUsbApi.dll dist\adb_uninstaller\
-          copy fastboot.exe dist\adb_uninstaller\
-          copy app_icon.ico dist\adb_uninstaller\
-          copy README.md dist\adb_uninstaller\
-          copy LICENSE dist\adb_uninstaller\
-          Compress-Archive -Path dist\adb_uninstaller -DestinationPath ADB-App-Remover-Windows.zip
+          mkdir dist
+          xcopy bin dist\bin /S /I
+          xcopy lib dist\lib /S /I
+          copy package.json dist\
+          copy README.md dist\
+          copy adb.exe dist\
+          copy AdbWinApi.dll dist\
+          copy AdbWinUsbApi.dll dist\
+          Compress-Archive -Path dist\* -DestinationPath ADB-App-Remover-Node.zip
 
       - name: Generate Dynamic Tag
         id: generate_tag
         run: echo "TAG_NAME=v1.0.${{ github.run_number }}" >> $env:GITHUB_ENV
-
-      - name: Upload Artifact (For checking)
-        uses: actions/upload-artifact@v4
-        with:
-          name: ADB-App-Remover-Zip
-          path: ADB-App-Remover-Windows.zip
 
       - name: Create Release
         uses: softprops/action-gh-release@v2
         with:
           tag_name: ${{ env.TAG_NAME }}
           name: Release ${{ env.TAG_NAME }}
-          files: ADB-App-Remover-Windows.zip
+          files: ADB-App-Remover-Node.zip
           generate_release_notes: true
         env:
           GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
