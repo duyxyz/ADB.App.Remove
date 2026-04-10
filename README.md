@@ -14,7 +14,6 @@ npx github:duyxyz/saca
 Install globally with npm:
 ```bash
 npm install -g github:duyxyz/saca
-saca
 ```
 
 ---
